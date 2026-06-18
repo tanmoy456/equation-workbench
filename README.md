@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo/logo.png" alt="Equation Workbench logo" width="96" height="96">
+  <img src="logo/logo.svg" alt="Equation Workbench logo" width="96" height="96">
 </p>
 
 <h1 align="center">Equation Workbench</h1>
