@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<script>
+  window.MathJax = {
+    loader: { load: ['[tex]/physics','[tex]/color','[tex]/boldsymbol','[tex]/cancel'] },
+    tex: { packages: { '[+]': ['physics','color','boldsymbol','cancel'] }, inlineMath: [['$','$']] },
+    svg: { fontCache: 'local' },
+    startup: { typeset: false }
+  };
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js"></script>
+<style>
+  :root{
+    --ink:#0F1216; --surface:#171B21; --rail:#1C2128; --line:#2A313B;
+    --plate:#FAFAF7; --text:#E7EAEF; --dim:#939AA6; --faint:#5B6573;
+    --accent:#5B7CFA; --accent-soft:rgba(91,124,250,.14); --accent-line:rgba(91,124,250,.45);
+    --danger:#F2785C; --ok:#57C7A3;
+    --sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    --mono:ui-monospace,'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--ink); color:var(--text); font-family:var(--sans); font-size:13px; padding:10px;}
+  .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+  .panel{background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:10px; margin-bottom:10px;}
+  .lbl{font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--dim); margin-bottom:7px}
+
+  .controls{display:flex; gap:10px 12px; align-items:center; flex-wrap:wrap; margin-bottom:9px}
+  .seg{display:flex; background:var(--rail); border:1px solid var(--line); border-radius:7px; overflow:hidden}
+  .seg button{font:inherit; font-size:11px; color:var(--dim); background:transparent; border:0; padding:5px 10px; cursor:pointer}
+  .seg button.on{color:var(--text); background:#283041}
+  .ctl{display:flex; align-items:center; gap:6px; color:var(--dim); font-size:11px}
+  .ctl input[type=range]{width:78px; accent-color:var(--accent)}
+  .ctl input[type=color]{width:24px;height:24px;border:1px solid var(--line);border-radius:5px;background:none;cursor:pointer;padding:0}
+
+  .plate{position:relative; background:var(--plate); color:#16181D; border-radius:7px; min-height:90px;
+    display:flex; align-items:center; justify-content:center; padding:16px 12px; overflow:auto;}
+  .plate .render{transition:opacity .14s; max-width:100%}
+  .plate.busy .render{opacity:.3}
+  .placeholder{color:#9aa0ab; font-style:italic}
+  .err{min-height:15px; margin-top:7px; font-family:var(--mono); font-size:11px; color:var(--danger)}
+
+  textarea{width:100%; min-height:78px; resize:vertical; background:var(--ink); color:var(--text);
+    border:1px solid var(--line); border-radius:7px; padding:9px; font-family:var(--mono); font-size:13px; line-height:1.55}
+  textarea:focus{outline:none; border-color:var(--accent-line); box-shadow:0 0 0 3px var(--accent-soft)}
+
+  .picker{display:flex; flex-direction:column; gap:8px}
+  .picker select{width:100%; padding:8px 9px; cursor:pointer}
+  .picker select#sym{font-family:var(--mono)}
+  select{font:inherit; font-size:12px; color:var(--text); background:var(--rail); border:1px solid var(--line); border-radius:7px; padding:6px}
+  select:focus{outline:none; border-color:var(--accent-line)}
+
+  .btn{font:inherit; font-size:13px; color:var(--text); background:var(--rail); border:1px solid var(--line);
+    border-radius:7px; padding:8px 11px; cursor:pointer}
+  .btn:hover{border-color:var(--accent-line); background:#222936}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#0b0f18; font-weight:600; flex:1}
+  .btn.primary:hover{background:#6f8bff}
+  .btn:disabled{opacity:.45; cursor:default}
+  .msg{font-size:11px; color:var(--dim); min-height:14px; margin-top:7px; text-align:center}
+  .msg.ok{color:var(--ok)} .msg.bad{color:var(--danger)}
+</style>
+</head>
+<body>
+
+  <div class="panel">
+    <div class="controls">
+      <div class="seg" id="mode">
+        <button data-mode="display" class="on">Display</button>
+        <button data-mode="inline">Inline</button>
+      </div>
+      <label class="ctl">size <input type="range" id="size" min="14" max="64" value="26"></label>
+      <label class="ctl">color <input type="color" id="color" value="#16181D"></label>
+      <label class="ctl">quality
+        <select id="quality"><option value="4">4×</option><option value="6">6×</option><option value="8">8×</option></select>
+      </label>
+    </div>
+    <div class="plate" id="plate"><div class="render" id="render"><span class="placeholder">loading…</span></div></div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="panel">
+    <div class="lbl">LaTeX source</div>
+    <textarea id="src" spellcheck="false" placeholder="\frac{\partial \phi}{\partial t} = D\,\nabla^2 \phi"></textarea>
+  </div>
+
+  <div class="panel">
+    <div class="lbl">Insert symbol</div>
+    <div class="picker">
+      <select id="cat" aria-label="Category"></select>
+      <select id="sym" aria-label="Symbol"></select>
+    </div>
+  </div>
+
+  <div class="row">
+    <button class="btn primary" id="insert">Insert into slide</button>
+    <button class="btn" id="copytex">Copy LaTeX</button>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <button class="btn" id="read" style="flex:1">Read selected</button>
+    <button class="btn" id="replace" style="flex:1">Replace selected</button>
+  </div>
+  <div class="msg" id="msg"></div>
+
+<script>
+(function(){
+  "use strict";
+  var GROUPS = {
+    "Greek":["\\alpha","\\beta","\\gamma","\\delta","\\epsilon","\\zeta","\\eta","\\theta","\\kappa","\\lambda",
+      "\\mu","\\nu","\\xi","\\pi","\\rho","\\sigma","\\tau","\\phi","\\chi","\\psi","\\omega","\\Gamma","\\Delta",
+      "\\Theta","\\Lambda","\\Sigma","\\Phi","\\Psi","\\Omega"],
+    "Build":["x^{$0}","x_{$0}","x_{$0}^{}","\\frac{$0}{}","\\sqrt{$0}","\\sqrt[$0]{}","\\hat{$0}","\\vec{$0}",
+      "\\bar{$0}","\\dot{$0}","\\ddot{$0}","\\tilde{$0}","\\overline{$0}","\\boldsymbol{$0}"],
+    "Ops":["+","-","\\times","\\cdot","\\div","\\pm","=","\\neq","\\approx","\\equiv","\\sim","\\propto","\\leq",
+      "\\geq","\\to","\\mapsto","\\infty","\\partial","\\nabla","\\in","\\subset","\\cup","\\cap"],
+    "Sums":["\\sum_{$0}^{}","\\prod_{$0}^{}","\\int_{$0}^{}","\\oint","\\lim_{$0}","\\langle $0 \\rangle",
+      "\\left( $0 \\right)","\\left[ $0 \\right]","\\left| $0 \\right|"],
+    "Physics":[["\\dv{$0}{}","dv d/dx"],["\\pdv{$0}{}","pdv ∂/∂x"],["\\grad","grad ∇"],["\\div","div ∇·"],
+      ["\\curl","curl ∇×"],["\\laplacian","laplacian ∇²"],["\\bra{$0}","bra ⟨ψ|"],["\\ket{$0}","ket |ψ⟩"],
+      ["\\braket{$0}{}","braket"],["\\expval{$0}","expval ⟨A⟩"],["\\abs{$0}","abs |x|"],["\\norm{$0}","norm ‖x‖"]],
+    "Matrix":[["\\begin{pmatrix} $0 & \\\\ & \\end{pmatrix}","( ) matrix"],
+      ["\\begin{bmatrix} $0 & \\\\ & \\end{bmatrix}","[ ] matrix"],
+      ["f(x)=\\begin{cases} $0 & x>0 \\\\ & x\\le 0 \\end{cases}","cases"]]
+  };
+
+  var $=function(s){return document.querySelector(s)};
+  var src=$("#src"), plate=$("#plate"), render=$("#render"), errEl=$("#err"),
+      sizeEl=$("#size"), colorEl=$("#color"), msg=$("#msg"), catEl=$("#cat"), symEl=$("#sym"), qualityEl=$("#quality");
+  var mode="display", ready=false, lastSVG=null;
+
+  function buildPalette(){
+    Object.keys(GROUPS).forEach(function(name){
+      var o=document.createElement("option"); o.value=name; o.textContent=name; catEl.appendChild(o);
+    });
+    catEl.onchange=function(){ fillSymbols(catEl.value); };
+    symEl.onchange=function(){ if(symEl.value){ insert(symEl.value); symEl.selectedIndex=0; src.focus(); } };
+    fillSymbols(Object.keys(GROUPS)[0]);
+  }
+  function fillSymbols(name){
+    symEl.innerHTML="";
+    var ph=document.createElement("option"); ph.value=""; ph.textContent="pick symbol…"; ph.disabled=true; ph.selected=true;
+    symEl.appendChild(ph);
+    GROUPS[name].forEach(function(it){
+      var snip=Array.isArray(it)?it[0]:it;
+      var lab=Array.isArray(it)?it[1]:snip.replace(/\$0/g,"");
+      var o=document.createElement("option"); o.value=snip; o.textContent=lab; symEl.appendChild(o);
+    });
+  }
+  function insert(snip){
+    var i=snip.indexOf("$0"), text=snip.replace("$0",""), s=src.selectionStart, e=src.selectionEnd, v=src.value;
+    src.value=v.slice(0,s)+text+v.slice(e); var c=s+(i>=0?i:text.length);
+    src.focus(); src.setSelectionRange(c,c); schedule();
+  }
+
+  var timer=null;
+  function schedule(){ clearTimeout(timer); timer=setTimeout(rerender,120); }
+  function applyView(){ render.style.fontSize=sizeEl.value+"px"; render.style.color=colorEl.value;
+    if(lastSVG) lastSVG.style.color=colorEl.value; }
+
+  function rerender(){
+    if(!ready) return;
+    var tex=src.value.trim();
+    if(!tex){ render.innerHTML='<span class="placeholder">your equation appears here</span>'; lastSVG=null; errEl.textContent=""; setEnabled(); return; }
+    plate.classList.add("busy");
+    try{
+      MathJax.texReset();
+      var node=MathJax.tex2svg(tex,{display:mode==="display"});
+      var svg=node.querySelector("svg");
+      var mErr=svg.querySelector('[data-mjx-error]');
+      render.innerHTML=""; render.appendChild(svg); lastSVG=svg; applyView();
+      errEl.textContent = mErr ? mErr.getAttribute("data-mjx-error") : "";
+    }catch(ex){ errEl.textContent=String(ex&&ex.message||ex); }
+    finally{ plate.classList.remove("busy"); setEnabled(); }
+  }
+  function setEnabled(){ var ok=!!lastSVG; $("#insert").disabled=!ok; $("#replace").disabled=!ok; $("#copytex").disabled=!src.value.trim(); }
+
+  // render current equation to a PNG data URL at high resolution
+  function toPng(res){
+    var clone=lastSVG.cloneNode(true);
+    clone.setAttribute("xmlns","http://www.w3.org/2000/svg");
+    var box=lastSVG.getBoundingClientRect();
+    var w=Math.max(1,Math.round(box.width)), h=Math.max(1,Math.round(box.height));
+    clone.setAttribute("width",w); clone.setAttribute("height",h); clone.removeAttribute("style");
+    var str=new XMLSerializer().serializeToString(clone).replace(/currentColor/g,colorEl.value);
+    return new Promise(function(resolve,reject){
+      var img=new Image();
+      img.onload=function(){
+        var c=document.createElement("canvas"); c.width=w*res; c.height=h*res;
+        var ctx=c.getContext("2d"); ctx.drawImage(img,0,0,c.width,c.height); // transparent bg
+        resolve({dataUrl:c.toDataURL("image/png"), width:w, height:h});
+      };
+      img.onerror=function(){ reject(new Error("render failed")); };
+      img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(str);
+    });
+  }
+
+  function flash(text,kind){ msg.textContent=text; msg.className="msg"+(kind?" "+kind:""); }
+
+  $("#insert").onclick=function(){
+    if(!lastSVG) return;
+    flash("rendering…");
+    toPng(Number(qualityEl.value)).then(function(out){
+      google.script.run
+        .withSuccessHandler(function(){ flash("inserted into slide","ok"); })
+        .withFailureHandler(function(err){ flash(err.message||"insert failed","bad"); })
+        .insertEquation({dataUrl:out.dataUrl, latex:src.value.trim(), width:out.width, height:out.height});
+    }).catch(function(){ flash("could not render","bad"); });
+  };
+  $("#copytex").onclick=function(){
+    try{ navigator.clipboard.writeText(src.value); flash("LaTeX copied","ok"); }
+    catch(e){ flash("select & copy manually","bad"); }
+  };
+  $("#read").onclick=function(){
+    flash("reading selection…");
+    google.script.run
+      .withSuccessHandler(function(tex){ src.value=tex; schedule(); src.focus(); flash("loaded from slide","ok"); })
+      .withFailureHandler(function(err){ flash(err.message||"nothing to read","bad"); })
+      .readSelectedEquation();
+  };
+  $("#replace").onclick=function(){
+    if(!lastSVG){ flash("type an equation first","bad"); return; }
+    flash("rendering…");
+    toPng(Number(qualityEl.value)).then(function(out){
+      google.script.run
+        .withSuccessHandler(function(){ flash("replaced on slide","ok"); })
+        .withFailureHandler(function(err){ flash(err.message||"replace failed","bad"); })
+        .replaceSelectedEquation({dataUrl:out.dataUrl, latex:src.value.trim(), width:out.width, height:out.height});
+    }).catch(function(){ flash("could not render","bad"); });
+  };
+
+  function setMode(m){ mode=m; Array.prototype.forEach.call(document.querySelectorAll("#mode button"),
+    function(b){ b.classList.toggle("on",b.dataset.mode===m); }); }
+  Array.prototype.forEach.call(document.querySelectorAll("#mode button"),function(b){
+    b.onclick=function(){ setMode(b.dataset.mode); rerender(); }; });
+  sizeEl.oninput=applyView; colorEl.oninput=applyView;
+  src.addEventListener("input",schedule);
+
+  buildPalette(); setEnabled();
+  (function wait(){
+    if(window.MathJax && MathJax.startup && MathJax.startup.promise){
+      MathJax.startup.promise.then(function(){
+        ready=true;
+        rerender();
+      });
+    } else setTimeout(wait,120);
+  })();
+})();
+</script>
+</body>
+</html>
