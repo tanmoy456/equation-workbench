@@ -11,7 +11,7 @@
 Type an equation in the sidebar, see it preview instantly, and drop it onto the current slide as a high‑resolution image. Later, select an inserted equation, pull its source back into the editor, tweak it, and replace it in place.
 
 <p align="center">
-  <img src="logo/screenshot.png" alt="Equation Workbench screenshot" width="100">
+  <img src="logo/screenshot.png" alt="Equation Workbench screenshot" width="300">
 </p>
 
 There is also a no‑install **web version** with vector SVG export — see the link near the bottom.
