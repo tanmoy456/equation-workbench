@@ -1,0 +1,502 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Equation Workbench</title>
+
+<!-- MathJax config must precede the script load -->
+<script>
+  window.MathJax = {
+    loader: { load: ['[tex]/physics', '[tex]/color', '[tex]/boldsymbol', '[tex]/cancel'] },
+    tex: {
+      packages: { '[+]': ['physics', 'color', 'boldsymbol', 'cancel'] },
+      inlineMath: [['$', '$']]
+    },
+    svg: { fontCache: 'local' },   // self-contained per-SVG defs -> exportable
+    startup: { typeset: false }
+  };
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js" id="MathJax-script"></script>
+
+<style>
+  :root{
+    --ink:#0F1216; --surface:#171B21; --rail:#1C2128; --line:#2A313B;
+    --plate:#FAFAF7; --plate-ink:#16181D;
+    --text:#E7EAEF; --dim:#939AA6; --faint:#5B6573;
+    --accent:#5B7CFA; --accent-soft:rgba(91,124,250,.14); --accent-line:rgba(91,124,250,.45);
+    --danger:#F2785C; --ok:#57C7A3;
+    --serif:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;
+    --sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    --mono:ui-monospace,'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;
+    --r:10px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:radial-gradient(1100px 560px at 80% -15%, #1d2330 0, transparent 62%), var(--ink);
+    color:var(--text); font-family:var(--sans); font-size:14px; line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .wrap{max-width:1280px; margin:0 auto; padding:22px clamp(14px,3vw,30px) 40px;}
+
+  header{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin-bottom:18px;}
+  .mark{font-family:var(--serif); font-size:25px; letter-spacing:.2px;}
+  .mark b{font-weight:600}
+  .mark .pp{color:var(--accent); font-weight:600}
+  .tag{color:var(--dim); font-size:12.5px; letter-spacing:.2px}
+  .live{margin-left:auto; display:flex; align-items:center; gap:7px; color:var(--dim); font-size:11.5px;
+    text-transform:uppercase; letter-spacing:.12em;}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--faint);transition:background .3s}
+  .dot.on{background:var(--ok); box-shadow:0 0 0 4px rgba(87,199,163,.14)}
+  .dot.err{background:var(--danger); box-shadow:0 0 0 4px rgba(242,120,92,.14)}
+
+  .grid{display:grid; grid-template-columns:232px minmax(0,1fr) 248px; gap:16px; align-items:start;}
+  @media(max-width:1000px){ .grid{grid-template-columns:1fr} }
+
+  .panel{background:var(--surface); border:1px solid var(--line); border-radius:var(--r);}
+  .phead{padding:11px 14px; font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--dim); border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px;}
+
+  /* ---- palette ---- */
+  .palette{position:sticky; top:14px;}
+  .picker{display:flex; flex-direction:column; gap:9px; padding:12px}
+  .picker select{width:100%; padding:9px 10px; cursor:pointer}
+  .picker select#sym{font-family:var(--mono)}
+  .picker-hint{padding:0 12px 13px; color:var(--faint); font-size:11.5px; line-height:1.5}
+  @media(max-width:1000px){ .palette{position:static; max-height:none; order:3} }
+  .tabs{display:flex; flex-wrap:wrap; gap:5px; padding:10px;}
+  .tab{font:inherit; font-size:11.5px; color:var(--dim); background:transparent;
+    border:1px solid transparent; border-radius:7px; padding:5px 9px; cursor:pointer;}
+  .tab:hover{color:var(--text); background:var(--rail)}
+  .tab.active{color:var(--accent); background:var(--accent-soft); border-color:var(--accent-line)}
+  .keys{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; padding:0 10px 12px;}
+  .keys.wide{grid-template-columns:repeat(2,1fr)}
+  .key{font-family:var(--mono); font-size:13px; color:var(--text); background:var(--rail);
+    border:1px solid var(--line); border-radius:7px; padding:9px 4px; cursor:pointer; min-height:38px;
+    display:flex; align-items:center; justify-content:center; transition:transform .06s, border-color .15s, background .15s;}
+  .key:hover{border-color:var(--accent-line); background:#222936}
+  .key:active{transform:translateY(1px)}
+  .key.tpl{grid-column:span 2; font-family:var(--sans); font-size:11.5px; color:var(--dim);
+    justify-content:flex-start; padding-left:11px; text-align:left}
+  .key.tpl:hover{color:var(--text)}
+
+  /* ---- center / plate ---- */
+  .stage{display:flex; flex-direction:column; gap:16px}
+  .plate-shell{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:16px;}
+  .controls{display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; margin-bottom:14px;}
+  .seg{display:flex; background:var(--rail); border:1px solid var(--line); border-radius:8px; overflow:hidden}
+  .seg button{font:inherit; font-size:12px; color:var(--dim); background:transparent; border:0;
+    padding:6px 13px; cursor:pointer}
+  .seg button.on{color:var(--text); background:#283041}
+  .ctl{display:flex; align-items:center; gap:8px; color:var(--dim); font-size:12px}
+  .ctl input[type=range]{width:104px; accent-color:var(--accent)}
+  .ctl input[type=color]{width:26px;height:26px;border:1px solid var(--line);border-radius:6px;background:none;cursor:pointer;padding:0}
+  .szval{font-family:var(--mono); color:var(--text); min-width:38px}
+
+  .plate{position:relative; background:var(--plate); color:var(--plate-ink);
+    border-radius:8px; min-height:190px; display:flex; align-items:center; justify-content:center;
+    padding:30px 26px; overflow:auto;
+    box-shadow:0 1px 0 rgba(255,255,255,.6) inset, 0 18px 40px -22px rgba(0,0,0,.7);
+    background-image:linear-gradient(rgba(20,24,30,.045) 1px, transparent 1px);
+    background-size:100% 26px; background-position:0 13px;}
+  .plate .render{transition:opacity .14s ease; max-width:100%}
+  .plate.busy .render{opacity:.32}
+  .plate .placeholder{color:#9aa0ab; font-family:var(--serif); font-style:italic; font-size:15px}
+
+  .errline{min-height:18px; margin-top:10px; font-family:var(--mono); font-size:12px; color:var(--danger)}
+  .errline:empty::before{content:"no errors"; color:var(--faint); font-family:var(--sans)}
+
+  /* ---- input ---- */
+  .inwrap{padding:14px}
+  textarea{width:100%; min-height:118px; resize:vertical; background:var(--ink); color:var(--text);
+    border:1px solid var(--line); border-radius:8px; padding:12px 13px; font-family:var(--mono);
+    font-size:14.5px; line-height:1.6; tab-size:2;}
+  textarea:focus{outline:none; border-color:var(--accent-line); box-shadow:0 0 0 3px var(--accent-soft)}
+
+  /* ---- export bar ---- */
+  .export{display:flex; flex-wrap:wrap; gap:9px; padding:14px; border-top:1px solid var(--line); align-items:center}
+  .btn{font:inherit; font-size:13px; color:var(--text); background:var(--rail); border:1px solid var(--line);
+    border-radius:8px; padding:8px 13px; cursor:pointer; display:inline-flex; align-items:center; gap:7px;
+    transition:border-color .15s, background .15s}
+  .btn:hover{border-color:var(--accent-line); background:#222936}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#0b0f18; font-weight:600}
+  .btn.primary:hover{background:#6f8bff}
+  .btn:disabled{opacity:.4; cursor:default}
+  .dpi{margin-left:auto; display:flex; align-items:center; gap:8px; color:var(--dim); font-size:12px}
+  select, .chk{font:inherit; font-size:12px; color:var(--text); background:var(--rail);
+    border:1px solid var(--line); border-radius:7px; padding:6px 8px}
+  .chk{display:inline-flex; align-items:center; gap:6px; cursor:pointer; user-select:none}
+  .chk input{accent-color:var(--accent)}
+
+  /* ---- library ---- */
+  .library{position:sticky; top:14px}
+  @media(max-width:1000px){ .library{position:static; order:2} }
+  .lib-actions{padding:10px; border-bottom:1px solid var(--line)}
+  .lib-list{max-height:62vh; overflow:auto; padding:8px}
+  @media(max-width:1000px){ .lib-list{max-height:none} }
+  .lib-empty{color:var(--faint); font-size:12.5px; padding:18px 10px; text-align:center; line-height:1.6}
+  .chip{position:relative; background:var(--plate); border:1px solid var(--line); border-radius:8px;
+    padding:14px 30px 14px 12px; margin-bottom:8px; cursor:pointer; overflow:hidden;
+    display:flex; align-items:center; min-height:50px; transition:border-color .15s}
+  .chip:hover{border-color:var(--accent-line)}
+  .chip svg{color:var(--plate-ink); max-width:100%; max-height:46px}
+  .chip .x{position:absolute; top:5px; right:6px; width:19px;height:19px; border-radius:5px;
+    border:0; background:rgba(20,22,28,.06); color:#6b7280; cursor:pointer; font-size:13px; line-height:1;
+    display:flex; align-items:center; justify-content:center}
+  .chip .x:hover{background:rgba(242,120,92,.18); color:var(--danger)}
+
+  .toast{position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(14px);
+    background:#0b0f18; border:1px solid var(--accent-line); color:var(--text); padding:9px 16px;
+    border-radius:9px; font-size:13px; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:50}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+
+  .hint{padding:0 14px 14px; color:var(--faint); font-size:11.5px}
+  kbd{font-family:var(--mono); background:var(--rail); border:1px solid var(--line); border-bottom-width:2px;
+    border-radius:5px; padding:1px 5px; font-size:11px; color:var(--dim)}
+
+  @media(prefers-reduced-motion:reduce){ *{transition:none!important} }
+  /* scrollbars */
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#2c3340;border-radius:8px;border:2px solid var(--surface)}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="mark"><b>Equation</b> Workbench</div>
+    <div class="tag"><a href="index.html" style="color:var(--accent);text-decoration:none">&larr; home</a> · type LaTeX · live SVG · paste into Keynote / Slides</div>
+    <div class="live"><span class="dot" id="status-dot"></span><span id="status-text">starting</span></div>
+  </header>
+
+  <div class="grid">
+
+    <!-- PALETTE -->
+    <aside class="panel palette">
+      <div class="phead">Insert symbol</div>
+      <div class="picker">
+        <select id="cat" aria-label="Category"></select>
+        <select id="sym" aria-label="Symbol"></select>
+      </div>
+      <div class="picker-hint">Pick a symbol — it drops in at your cursor.</div>
+    </aside>
+
+    <!-- STAGE -->
+    <section class="stage">
+      <div class="plate-shell">
+        <div class="controls">
+          <div class="seg" id="mode">
+            <button data-mode="display" class="on">Display</button>
+            <button data-mode="inline">Inline</button>
+          </div>
+          <label class="ctl">size
+            <input type="range" id="size" min="16" max="72" value="30">
+            <span class="szval" id="sizeval">30px</span>
+          </label>
+          <label class="ctl">color
+            <input type="color" id="color" value="#16181D">
+          </label>
+        </div>
+        <div class="plate" id="plate">
+          <div class="render" id="render"><span class="placeholder">typesetter loading…</span></div>
+        </div>
+        <div class="errline" id="err"></div>
+      </div>
+
+      <div class="panel">
+        <div class="phead">LaTeX source</div>
+        <div class="inwrap">
+          <textarea id="src" spellcheck="false" placeholder="\frac{\partial \phi}{\partial t} = D\,\nabla^2 \phi"></textarea>
+        </div>
+        <div class="export">
+          <button class="btn primary" id="copy-img">Copy image</button>
+          <button class="btn" id="copy-svg">Copy SVG</button>
+          <button class="btn" id="dl-svg">Download SVG</button>
+          <button class="btn" id="dl-png">Download PNG</button>
+          <button class="btn" id="copy-tex">Copy LaTeX</button>
+          <div class="dpi">
+            <label class="chk"><input type="checkbox" id="transparent" checked> transparent</label>
+            <select id="dpi">
+              <option value="2">2× (150 dpi)</option>
+              <option value="4" selected>4× (300 dpi)</option>
+              <option value="8">8× (600 dpi)</option>
+            </select>
+          </div>
+        </div>
+        <div class="hint"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> save to library · click any symbol to insert at the cursor</div>
+      </div>
+    </section>
+
+    <!-- LIBRARY -->
+    <aside class="panel library">
+      <div class="phead">Library</div>
+      <div class="lib-actions"><button class="btn primary" id="save" style="width:100%; justify-content:center">Save current equation</button></div>
+      <div class="lib-list" id="lib"></div>
+    </aside>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- palette data ----------
+  // $0 marks where the caret should land after insertion.
+  const GROUPS = {
+    "Greek": ["\\alpha","\\beta","\\gamma","\\delta","\\epsilon","\\varepsilon","\\zeta","\\eta","\\theta",
+      "\\kappa","\\lambda","\\mu","\\nu","\\xi","\\pi","\\rho","\\sigma","\\tau","\\phi","\\varphi","\\chi",
+      "\\psi","\\omega","\\Gamma","\\Delta","\\Theta","\\Lambda","\\Xi","\\Sigma","\\Phi","\\Psi","\\Omega"],
+    "Build": ["x^{$0}","x_{$0}","x_{$0}^{}","\\frac{$0}{}","\\sqrt{$0}","\\sqrt[$0]{}",
+      "\\hat{$0}","\\vec{$0}","\\bar{$0}","\\tilde{$0}","\\dot{$0}","\\ddot{$0}",
+      "\\overline{$0}","\\underline{$0}","\\overrightarrow{$0}","\\boldsymbol{$0}"],
+    "Ops": ["+","-","\\times","\\cdot","\\div","\\pm","\\mp","\\ast","=","\\neq","\\approx","\\equiv",
+      "\\sim","\\propto","\\leq","\\geq","\\ll","\\gg","\\to","\\mapsto","\\Rightarrow","\\Leftrightarrow",
+      "\\infty","\\partial","\\nabla","\\forall","\\exists","\\in","\\notin","\\subset","\\cup","\\cap"],
+    "Sums": ["\\sum_{$0}^{}","\\prod_{$0}^{}","\\int_{$0}^{}","\\iint","\\oint","\\lim_{$0}",
+      "\\langle $0 \\rangle","\\left\\langle $0 \\right\\rangle","\\left( $0 \\right)","\\left[ $0 \\right]",
+      "\\left\\{ $0 \\right\\}","\\left| $0 \\right|"],
+    "Physics": [
+      ["\\dv{$0}{}","dv  d/dx"],["\\pdv{$0}{}","pdv  ∂/∂x"],["\\dv[2]{$0}{}","2nd deriv"],
+      ["\\grad","grad ∇"],["\\div","div ∇·"],["\\curl","curl ∇×"],["\\laplacian","laplacian ∇²"],
+      ["\\bra{$0}","bra ⟨ψ|"],["\\ket{$0}","ket |ψ⟩"],["\\braket{$0}{}","braket ⟨φ|ψ⟩"],
+      ["\\expval{$0}","expval ⟨A⟩"],["\\abs{$0}","abs |x|"],["\\norm{$0}","norm ‖x‖"]],
+    "Matrix": [
+      ["\\begin{pmatrix} $0 & \\\\ & \\end{pmatrix}","( ) matrix"],
+      ["\\begin{bmatrix} $0 & \\\\ & \\end{bmatrix}","[ ] matrix"],
+      ["\\begin{vmatrix} $0 & \\\\ & \\end{vmatrix}","| | determinant"],
+      ["f(x) = \\begin{cases} $0 & x > 0 \\\\ & x \\le 0 \\end{cases}","cases"]]
+  };
+
+  const $ = (s)=>document.querySelector(s);
+  const catEl=$("#cat"), symEl=$("#sym"), src=$("#src"), plate=$("#plate"),
+        render=$("#render"), errEl=$("#err"), dot=$("#status-dot"), stext=$("#status-text"),
+        sizeEl=$("#size"), sizeVal=$("#sizeval"), colorEl=$("#color"), libEl=$("#lib");
+
+  let mode="display";              // display | inline
+  let mathReady=false;
+  let lastSVG=null;                // live <svg> element of current render
+
+  // ---------- palette UI (dropdowns) ----------
+  function buildPalette(){
+    Object.keys(GROUPS).forEach(name=>{
+      const o=document.createElement("option"); o.value=name; o.textContent=name; catEl.appendChild(o);
+    });
+    catEl.onchange=()=>fillSymbols(catEl.value);
+    symEl.onchange=()=>{ if(symEl.value){ insert(symEl.value); symEl.selectedIndex=0; src.focus(); } };
+    fillSymbols(Object.keys(GROUPS)[0]);
+  }
+  function fillSymbols(name){
+    symEl.innerHTML="";
+    const ph=document.createElement("option");
+    ph.value=""; ph.textContent="pick symbol…"; ph.disabled=true; ph.selected=true;
+    symEl.appendChild(ph);
+    GROUPS[name].forEach(it=>{
+      const snippet=Array.isArray(it)?it[0]:it;
+      const label=Array.isArray(it)?it[1]:snippet.replace(/\$0/g,"");
+      const o=document.createElement("option");
+      o.value=snippet; o.textContent=label; symEl.appendChild(o);
+    });
+  }
+
+  // ---------- insert at caret ----------
+  function insert(snippet){
+    const i=snippet.indexOf("$0");
+    const text=snippet.replace("$0","");
+    const s=src.selectionStart, e=src.selectionEnd, v=src.value;
+    src.value=v.slice(0,s)+text+v.slice(e);
+    const caret=s+(i>=0?i:text.length);
+    src.focus(); src.setSelectionRange(caret,caret);
+    schedule();
+  }
+
+  // ---------- rendering ----------
+  let timer=null;
+  function schedule(){ clearTimeout(timer); timer=setTimeout(rerender,120); }
+
+  function setStatus(state,msg){
+    dot.className="dot"+(state==="ok"?" on":state==="err"?" err":"");
+    stext.textContent=msg;
+  }
+
+  function rerender(){
+    if(!mathReady) return;
+    const tex=src.value.trim();
+    if(!tex){ render.innerHTML='<span class="placeholder">your equation appears here</span>';
+      lastSVG=null; errEl.textContent=""; setStatus("idle","empty"); refreshButtons(); return; }
+    plate.classList.add("busy");
+    try{
+      MathJax.texReset();
+      const node=MathJax.tex2svg(tex,{display:mode==="display"});
+      const svg=node.querySelector("svg");
+      const mErr=svg.querySelector('[data-mjx-error]');
+      render.innerHTML="";
+      render.appendChild(svg);
+      lastSVG=svg;
+      applyView();
+      if(mErr){ errEl.textContent=mErr.getAttribute("data-mjx-error"); setStatus("err","syntax error"); }
+      else { errEl.textContent=""; setStatus("ok","rendered"); }
+    }catch(ex){
+      errEl.textContent=String(ex&&ex.message||ex); setStatus("err","render failed");
+    }finally{
+      plate.classList.remove("busy"); refreshButtons();
+    }
+  }
+
+  function applyView(){
+    render.style.fontSize=sizeEl.value+"px";
+    render.style.color=colorEl.value;
+    if(lastSVG) lastSVG.style.color=colorEl.value;
+  }
+
+  // ---------- export helpers ----------
+  function exportSVGString(scale){
+    if(!lastSVG) return null;
+    const clone=lastSVG.cloneNode(true);
+    clone.setAttribute("xmlns","http://www.w3.org/2000/svg");
+    // measure actual pixel box at the chosen on-screen size, then scale up
+    const box=lastSVG.getBoundingClientRect();
+    const w=Math.max(1,Math.round(box.width*scale)), h=Math.max(1,Math.round(box.height*scale));
+    clone.setAttribute("width",w); clone.setAttribute("height",h);
+    clone.removeAttribute("style"); // strip vertical-align etc.
+    let str=new XMLSerializer().serializeToString(clone);
+    // bake the chosen color (MathJax uses currentColor)
+    str=str.replace(/currentColor/g,colorEl.value);
+    return {str,w,h};
+  }
+
+  function refreshButtons(){
+    const ok=!!lastSVG;
+    ["#copy-img","#copy-svg","#dl-svg","#dl-png","#copy-tex","#save"].forEach(s=>$(s).disabled=!ok);
+  }
+
+  function download(blob,name){
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+  }
+
+  function svgToPngBlob(svgStr,w,h,scale,transparent){
+    return new Promise((res,rej)=>{
+      const img=new Image();
+      const url="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svgStr);
+      img.onload=()=>{
+        const c=document.createElement("canvas");
+        c.width=w*scale; c.height=h*scale;
+        const ctx=c.getContext("2d");
+        if(!transparent){ ctx.fillStyle="#ffffff"; ctx.fillRect(0,0,c.width,c.height); }
+        ctx.drawImage(img,0,0,c.width,c.height);
+        c.toBlob(b=> b?res(b):rej(new Error("encode failed")),"image/png");
+      };
+      img.onerror=()=>rej(new Error("svg load failed"));
+      img.src=url;
+    });
+  }
+
+  // ---------- toast ----------
+  let tt=null;
+  function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show");
+    clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("show"),1700); }
+
+  // ---------- export wiring ----------
+  $("#copy-tex").onclick=async()=>{
+    try{ await navigator.clipboard.writeText(src.value); toast("LaTeX copied"); }
+    catch{ toast("copy blocked — select & copy manually"); }
+  };
+  $("#copy-svg").onclick=async()=>{
+    const out=exportSVGString(Number($("#dpi").value)); if(!out) return;
+    try{ await navigator.clipboard.writeText(out.str); toast("SVG markup copied"); }
+    catch{ toast("copy blocked by browser"); }
+  };
+  $("#dl-svg").onclick=()=>{
+    const out=exportSVGString(Number($("#dpi").value)); if(!out) return;
+    download(new Blob([out.str],{type:"image/svg+xml"}),"equation.svg"); toast("SVG saved");
+  };
+  $("#dl-png").onclick=async()=>{
+    const scale=Number($("#dpi").value);
+    const out=exportSVGString(scale); if(!out) return;
+    try{
+      const blob=await svgToPngBlob(out.str,out.w,out.h,1,$("#transparent").checked);
+      download(blob,"equation.png"); toast("PNG saved ("+out.w+"×"+out.h+")");
+    }catch(e){ toast("PNG export failed"); }
+  };
+  $("#copy-img").onclick=async()=>{
+    const scale=Number($("#dpi").value);
+    const out=exportSVGString(scale); if(!out) return;
+    try{
+      const blob=await svgToPngBlob(out.str,out.w,out.h,1,$("#transparent").checked);
+      await navigator.clipboard.write([new ClipboardItem({"image/png":blob})]);
+      toast("image copied — paste into Keynote / Slides");
+    }catch(e){ toast("copy-image unsupported — use Download PNG"); }
+  };
+
+  // ---------- library (persistent) ----------
+  let lib=[];
+  const hasStore = typeof window!=="undefined" && window.storage && typeof window.storage.get==="function";
+
+  async function loadLib(){
+    if(hasStore){
+      try{ const r=await window.storage.get("equations"); if(r&&r.value) lib=JSON.parse(r.value); }
+      catch{ lib=[]; }
+    }
+    renderLib();
+  }
+  async function persist(){
+    if(hasStore){ try{ await window.storage.set("equations",JSON.stringify(lib)); }catch{} }
+  }
+  function thumb(tex){
+    try{ MathJax.texReset(); const n=MathJax.tex2svg(tex,{display:false}); const s=n.querySelector("svg");
+      s.removeAttribute("width"); s.style.height="34px"; s.style.width="auto"; return s.outerHTML; }
+    catch{ return '<span style="font-family:var(--mono);font-size:11px;color:#888">'+tex.slice(0,40)+'</span>'; }
+  }
+  function renderLib(){
+    if(!lib.length){ libEl.innerHTML='<div class="lib-empty">Saved equations live here.<br>They persist across sessions — click to reload and edit.</div>'; return; }
+    libEl.innerHTML="";
+    lib.slice().reverse().forEach(item=>{
+      const chip=document.createElement("div"); chip.className="chip"; chip.title="click to load";
+      chip.innerHTML=thumb(item.tex);
+      chip.onclick=(ev)=>{ if(ev.target.classList.contains("x")) return;
+        src.value=item.tex; if(item.mode){ setMode(item.mode); } schedule(); src.focus();
+        toast("loaded"); };
+      const x=document.createElement("button"); x.className="x"; x.textContent="×"; x.title="delete";
+      x.onclick=async(ev)=>{ ev.stopPropagation(); lib=lib.filter(e=>e.id!==item.id); await persist(); renderLib(); };
+      chip.appendChild(x);
+      libEl.appendChild(chip);
+    });
+  }
+  async function saveCurrent(){
+    const tex=src.value.trim(); if(!tex) return;
+    lib.push({id:Date.now()+"_"+Math.random().toString(36).slice(2,6), tex, mode});
+    await persist(); renderLib(); toast("saved to library");
+  }
+  $("#save").onclick=saveCurrent;
+
+  // ---------- controls ----------
+  function setMode(m){ mode=m;
+    document.querySelectorAll("#mode button").forEach(b=>b.classList.toggle("on",b.dataset.mode===m)); }
+  document.querySelectorAll("#mode button").forEach(b=> b.onclick=()=>{ setMode(b.dataset.mode); rerender(); });
+  sizeEl.oninput=()=>{ sizeVal.textContent=sizeEl.value+"px"; applyView(); };
+  colorEl.oninput=()=>{ applyView(); };
+  src.addEventListener("input",schedule);
+  src.addEventListener("keydown",e=>{
+    if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){ e.preventDefault(); saveCurrent(); }
+  });
+
+  // ---------- boot ----------
+  buildPalette();
+  refreshButtons();
+  setStatus("idle","starting");
+
+  function whenReady(){
+    if(window.MathJax && MathJax.startup && MathJax.startup.promise){
+      MathJax.startup.promise.then(()=>{
+        mathReady=true;
+        src.value="\\frac{\\partial \\phi}{\\partial t} = D\\,\\nabla^{2}\\phi - \\frac{1}{\\tau}\\,\\frac{\\delta F}{\\delta \\phi}";
+        rerender(); loadLib();
+        setStatus("ok","ready");
+      });
+    } else { setTimeout(whenReady,120); }
+  }
+  whenReady();
+})();
+</script>

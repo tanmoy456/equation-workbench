@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Equation Workbench — LaTeX equations for Slides, Keynote & anywhere</title>
+<meta name="description" content="Type LaTeX, get clean equations. A live editor with vector SVG and high-resolution PNG export, plus a Google Slides add-on that inserts and re-edits equations in place.">
+
+<script>
+  window.MathJax = {
+    loader: { load: ['[tex]/physics','[tex]/boldsymbol'] },
+    tex: { packages: { '[+]': ['physics','boldsymbol'] } },
+    svg: { fontCache: 'local' }, startup: { typeset: false }
+  };
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js"></script>
+
+<style>
+  :root{
+    --ink:#0F1216; --surface:#171B21; --rail:#1C2128; --line:#2A313B;
+    --plate:#FAFAF7; --plate-ink:#16181D;
+    --text:#E7EAEF; --dim:#939AA6; --faint:#5B6573;
+    --accent:#5B7CFA; --accent-soft:rgba(91,124,250,.14); --accent-line:rgba(91,124,250,.45);
+    --serif:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;
+    --sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    --mono:ui-monospace,'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0; background:radial-gradient(1100px 560px at 82% -18%, #1d2330 0, transparent 62%), var(--ink);
+    color:var(--text); font-family:var(--sans); line-height:1.6; -webkit-font-smoothing:antialiased}
+  a{color:var(--accent)}
+  .wrap{max-width:1060px; margin:0 auto; padding:0 clamp(16px,4vw,28px)}
+
+  /* nav */
+  nav{position:sticky; top:0; z-index:10; backdrop-filter:blur(8px);
+    background:rgba(15,18,22,.72); border-bottom:1px solid var(--line)}
+  .nav-in{max-width:1060px; margin:0 auto; padding:13px clamp(16px,4vw,28px); display:flex; align-items:center; gap:18px}
+  .brand{font-family:var(--serif); font-size:19px}
+  .brand b{font-weight:600}
+  .nav-links{margin-left:auto; display:flex; gap:18px; align-items:center; font-size:14px}
+  .nav-links a{color:var(--dim); text-decoration:none}
+  .nav-links a:hover{color:var(--text)}
+  .nav-links .cta{color:var(--accent)}
+  @media(max-width:620px){ .nav-links a:not(.cta){display:none} }
+
+  /* hero */
+  .hero{padding:clamp(46px,9vw,92px) 0 36px}
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin-bottom:18px}
+  h1{font-family:var(--serif); font-weight:600; font-size:clamp(34px,6vw,56px); line-height:1.08; margin:0 0 18px; letter-spacing:-.01em}
+  .lead{font-size:clamp(16px,2.2vw,19px); color:var(--dim); max-width:640px; margin:0 0 28px}
+  .buttons{display:flex; flex-wrap:wrap; gap:12px}
+  .btn{font:inherit; font-size:15px; text-decoration:none; border-radius:9px; padding:11px 18px; display:inline-flex; align-items:center; gap:8px; border:1px solid var(--line); color:var(--text); background:var(--rail); cursor:pointer}
+  .btn:hover{border-color:var(--accent-line); background:#222936}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#0b0f18; font-weight:600}
+  .btn.primary:hover{background:#6f8bff}
+
+  /* live demo plate */
+  .demo{margin-top:42px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px;
+    box-shadow:0 30px 80px -50px rgba(0,0,0,.9)}
+  .demo-head{display:flex; align-items:center; gap:8px; color:var(--dim); font-size:12px; letter-spacing:.04em; padding:4px 6px 12px}
+  .demo-head .pip{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+  .demo-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+  @media(max-width:760px){ .demo-grid{grid-template-columns:1fr} }
+  .demo textarea{width:100%; min-height:150px; resize:vertical; background:var(--ink); color:var(--text);
+    border:1px solid var(--line); border-radius:10px; padding:14px; font-family:var(--mono); font-size:14.5px; line-height:1.6}
+  .demo textarea:focus{outline:none; border-color:var(--accent-line); box-shadow:0 0 0 3px var(--accent-soft)}
+  .plate{background:var(--plate); color:var(--plate-ink); border-radius:10px; min-height:150px;
+    display:flex; align-items:center; justify-content:center; padding:22px; overflow:auto;
+    background-image:linear-gradient(rgba(20,24,30,.045) 1px,transparent 1px); background-size:100% 26px; background-position:0 13px}
+  .plate svg{max-width:100%}
+  .demo-foot{padding:12px 6px 4px; color:var(--faint); font-size:13px}
+  .demo-foot a{text-decoration:none}
+
+  /* sections */
+  section.block{padding:56px 0; border-top:1px solid var(--line)}
+  h2{font-family:var(--serif); font-weight:600; font-size:clamp(24px,4vw,32px); margin:0 0 10px; letter-spacing:-.01em}
+  .sub{color:var(--dim); max-width:660px; margin:0 0 30px}
+  .features{display:grid; grid-template-columns:repeat(3,1fr); gap:16px}
+  @media(max-width:820px){ .features{grid-template-columns:1fr} }
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:20px}
+  .card h3{font-size:16px; margin:0 0 7px}
+  .card p{color:var(--dim); font-size:14px; margin:0}
+  .card .ic{font-family:var(--mono); color:var(--accent); font-size:13px; letter-spacing:.05em; margin-bottom:12px}
+
+  .formats{display:flex; flex-wrap:wrap; gap:10px; margin-top:8px}
+  .pill{font-family:var(--mono); font-size:13px; color:var(--text); background:var(--rail); border:1px solid var(--line); border-radius:999px; padding:7px 14px}
+
+  .split{display:grid; grid-template-columns:1.1fr .9fr; gap:30px; align-items:center}
+  @media(max-width:820px){ .split{grid-template-columns:1fr} }
+  ol.steps{margin:0; padding-left:20px; color:var(--dim)}
+  ol.steps li{margin:0 0 8px}
+  ol.steps b{color:var(--text); font-weight:600}
+
+  footer{border-top:1px solid var(--line); padding:34px 0 60px; color:var(--faint); font-size:13.5px}
+  footer .f-in{display:flex; flex-wrap:wrap; gap:14px 26px; align-items:center}
+  footer a{color:var(--dim); text-decoration:none}
+  footer a:hover{color:var(--text)}
+  .spacer{flex:1}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-in">
+    <span class="brand"><b>Equation</b> Workbench</span>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#formats">Export</a>
+      <a href="#addon">Slides add-on</a>
+      <a href="privacy.html">Privacy</a>
+      <a class="cta" href="app.html">Open editor →</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero wrap">
+  <div class="eyebrow">LaTeX · rendered live · yours to keep</div>
+  <h1>Type LaTeX.<br>Get clean equations. Anywhere.</h1>
+  <p class="lead">A fast equation editor with a live preview, a physics-aware symbol palette, and exports that hold up — vector SVG, high-resolution PNG, or a one-click image you paste straight into Keynote and Google Slides.</p>
+  <div class="buttons">
+    <a class="btn primary" href="app.html">Open the editor</a>
+    <a class="btn" href="#addon">Get the Slides add-on</a>
+  </div>
+
+  <div class="demo">
+    <div class="demo-head"><span class="pip"></span> live preview — edit the LaTeX</div>
+    <div class="demo-grid">
+      <textarea id="demo-src" spellcheck="false"></textarea>
+      <div class="plate"><div id="demo-out"></div></div>
+    </div>
+    <div class="demo-foot">Want to export it? <a href="app.html">Open the full editor →</a></div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="block" id="features">
+    <h2>Built for people who actually write math</h2>
+    <p class="sub">Everything renders in your browser. Nothing to install for the web editor, and your equations stay yours.</p>
+    <div class="features">
+      <div class="card"><div class="ic">SVG</div><h3>True vector export</h3><p>Download crisp SVG that stays sharp at any projector zoom — ideal for Keynote, PowerPoint, Illustrator, and LaTeX/Beamer.</p></div>
+      <div class="card"><div class="ic">PNG</div><h3>High-resolution raster</h3><p>Export transparent PNG at 2×, 4×, or 8× (≈150–600 dpi) when you need a flat image instead of vectors.</p></div>
+      <div class="card"><div class="ic">⌘V</div><h3>Copy image, paste in</h3><p>One click puts a transparent PNG on your clipboard. Paste it straight onto a slide — no files, no screenshots.</p></div>
+      <div class="card"><div class="ic">∂∇</div><h3>Physics palette</h3><p>The <code>physics</code> package is wired in: derivatives, gradients, bra–ket, expectation values, norms, matrices, and more, grouped in dropdowns.</p></div>
+      <div class="card"><div class="ic">★</div><h3>Equation library</h3><p>Save equations and reload them later to edit — notation you reuse across a talk is one click away.</p></div>
+      <div class="card"><div class="ic">↺</div><h3>Round-trip in Slides</h3><p>The add-on stores your LaTeX with each equation, so you can select one on a slide, edit the source, and replace it in place.</p></div>
+    </div>
+  </section>
+
+  <section class="block" id="formats">
+    <h2>Export in the format you need</h2>
+    <p class="sub">The same equation, ready for wherever it's going.</p>
+    <div class="formats">
+      <span class="pill">Vector SVG</span>
+      <span class="pill">PNG 2× / 4× / 8×</span>
+      <span class="pill">Copy image to clipboard</span>
+      <span class="pill">Copy LaTeX source</span>
+      <span class="pill">Transparent background</span>
+      <span class="pill">Custom color &amp; size</span>
+    </div>
+    <p style="margin-top:24px"><a class="btn primary" href="app.html">Open the editor</a></p>
+  </section>
+
+  <section class="block" id="addon">
+    <div class="split">
+      <div>
+        <h2>The Google Slides add-on</h2>
+        <p class="sub">Insert equations onto a slide without leaving Slides, then come back and edit them later — the source travels with the image.</p>
+        <ol class="steps">
+          <li>Open a presentation, then <b>Extensions → Equation Workbench → Open editor</b>.</li>
+          <li>Type LaTeX, click a slide, and hit <b>Insert into slide</b>.</li>
+          <li>Later, select an equation and <b>Read selected</b> to load its source back in.</li>
+          <li>Edit, then <b>Replace selected</b> to swap it in place at the same spot.</li>
+        </ol>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:12px">Get it</h3>
+        <p style="margin-bottom:16px">The add-on is coming to the Google Workspace Marketplace. In the meantime you can run it from the source.</p>
+        <a class="btn" href="https://github.com/tanmoy456/equation-workbench" target="_blank" rel="noopener">View on GitHub</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>Your data stays with you</h2>
+    <p class="sub">The web editor runs entirely in your browser. The Slides add-on only touches the presentation you have open, and only when you ask it to. Nothing is sold, and nothing is stored on our servers.</p>
+    <a class="btn" href="privacy.html">Read the privacy policy</a>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap f-in">
+    <span class="brand" style="font-size:16px"><b>Equation</b> Workbench</span>
+    <span class="spacer"></span>
+    <a href="app.html">Editor</a>
+    <a href="privacy.html">Privacy</a>
+    <a href="https://github.com/tanmoy456/equation-workbench" target="_blank" rel="noopener">GitHub</a>
+    <a href="mailto:your-email@example.com">Support</a>
+  </div>
+  <div class="wrap" style="margin-top:14px; font-size:12.5px; color:var(--faint)">
+    Built by Tanmoy Ghosh · Equations render with MathJax · © 2026
+  </div>
+</footer>
+
+<script>
+  (function(){
+    var src=document.getElementById('demo-src'), out=document.getElementById('demo-out');
+    var sample="\\frac{\\partial \\phi}{\\partial t} = D\\,\\nabla^{2}\\phi - \\frac{1}{\\tau}\\,\\frac{\\delta F}{\\delta \\phi}";
+    src.value=sample;
+    var t=null;
+    function draw(){
+      if(!window.MathJax || !MathJax.tex2svg) return;
+      try{ MathJax.texReset(); var n=MathJax.tex2svg(src.value.trim()||"\\;",{display:true});
+        out.innerHTML=""; out.appendChild(n.querySelector('svg')); }catch(e){}
+    }
+    src.addEventListener('input',function(){ clearTimeout(t); t=setTimeout(draw,120); });
+    (function wait(){ if(window.MathJax&&MathJax.startup&&MathJax.startup.promise){ MathJax.startup.promise.then(draw); } else setTimeout(wait,120); })();
+  })();
+</script>
+</body>
+</html>
