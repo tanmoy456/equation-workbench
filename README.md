@@ -40,7 +40,7 @@ equation-workbench/
 │   ├── Sidebar.html       # the editor UI (preview, LaTeX input, palette, buttons)
 │   └── appsscript.json    # manifest: declares the two OAuth scopes
 └── logo/
-    ├── logo.png           # app icon
+    ├── logo.svg           # app icon
     └── screenshot.png     # preview image
 ```
 
@@ -59,7 +59,7 @@ You don't need any deployment or publishing step. Paste the three files into an 
 7. A new menu appears: **Extensions → Equation Workbench → Open editor**. Click it.
 8. **On first run, you'll see a warning that the app isn't verified — this is expected. Accept it** (instructions just below). After that, the sidebar opens and you're ready.
 
-> The add‑on lives in this presentation (and any copy of it — **File → Make a copy** carries the script along). To make it available in *all* your presentations, see "Use it everywhere" below.
+> The add‑on lives in this presentation (and any copy of it — **File → Make a copy** carries the script along). To reuse it in new decks, see "Use it in more presentations" below.
 
 ---
 
@@ -95,19 +95,20 @@ You only do this **once per Google account**. After that, the add‑on opens str
 
 ---
 
-## Use it everywhere (optional)
+## Use it in more presentations
 
-The steps above bind the add‑on to one presentation. If you'd rather have it in **every** presentation on your account:
+A bound script only lives in the presentation it was created in. To reuse it in new decks, keep that presentation as a **template** and copy it:
 
-1. Set up the same three files in an Apps Script project.
-2. **Deploy → Test deployments → gear ⚙️ → Editor Add‑on → Install → Done.**
-3. It now appears under **Extensions** in all your Slides files (accept the same one‑time warning on first run).
+1. Set up the add‑on in one presentation (the install steps above), and keep that file as your template (e.g. name it "Equation Workbench — Template").
+2. Whenever you start a new deck: open the template → **File → Make a copy** → rename it. The add‑on travels with the copy, so it's already under **Extensions** in the new deck.
+
+> An add‑on only appears **automatically in every presentation** when it's installed from the **Google Workspace Marketplace** (the public, Google‑reviewed route). Without publishing there, the copy‑the‑template method above is the simple way to reuse it.
 
 ---
 
 ## Sharing with others
 
-- **Best (works in all their decks):** send them this repo; they follow the install steps on their own Google account and accept the one‑time warning.
+- **Best (works in all their decks):** send them this repo; they follow the install steps on their own Google account and accept the one‑time warning, then keep a template deck as above.
 - **Quick:** share a presentation that already has the script bound to it (as Editor). They get it under **Extensions** in that deck and its copies.
 
 A self‑installed (unverified) add‑on supports up to ~100 users — plenty for personal sharing.
